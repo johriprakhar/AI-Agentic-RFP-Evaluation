@@ -65,18 +65,72 @@ _CSS = """
 .rfp-section h3 { margin:0; font-size:1.08rem; font-weight:750; color:#1E2235; }
 
 /* ---------- Tabs ---------- */
-.stTabs [data-baseweb="tab-list"] {
-    gap:.45rem; background:#FFFFFF; padding:.42rem; border-radius:14px;
-    border:1px solid #E7EAF6; box-shadow:0 3px 14px rgba(30,34,53,.05);
+.stTabs [data-baseweb="tab-list"],
+.stTabs [role="tablist"],
+[data-testid="stTabs"] [role="tablist"] {
+    display: inline-flex;
+    gap: .45rem;
+    background: #FFFFFF;
+    padding: .42rem;
+    border-radius: 14px;
+    border: 1px solid #E7EAF6;
+    box-shadow: 0 3px 14px rgba(30,34,53,.05);
+    align-items: center;
 }
-.stTabs [data-baseweb="tab"] {
-    height:44px; border-radius:11px; padding:0 20px;
-    font-weight:650; color:#49506A; background:transparent;
+.stTabs [role="tablist"]::after,
+[data-testid="stTabs"] [role="tablist"]::after {
+    display: none !important;
 }
-.stTabs [data-baseweb="tab"]:hover { background:#F1F3FF; }
-.stTabs [aria-selected="true"] { background:linear-gradient(135deg,#4F46E5,#06B6D4); }
-.stTabs [aria-selected="true"] p, .stTabs [aria-selected="true"] div { color:#FFFFFF !important; }
-.stTabs [data-baseweb="tab-highlight"], .stTabs [data-baseweb="tab-border"] { background:transparent; }
+
+.stTabs [data-baseweb="tab"],
+.stTabs [data-testid="stTab"],
+.stTabs [role="tab"],
+[data-testid="stTabs"] [data-testid="stTab"] {
+    height: 42px;
+    border-radius: 11px;
+    padding: 0 20px;
+    font-weight: 650;
+    color: #49506A;
+    background: transparent;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+.stTabs [data-baseweb="tab"]:hover,
+.stTabs [data-testid="stTab"]:hover,
+.stTabs [role="tab"]:hover {
+    background: #F1F3FF;
+    color: #4F46E5;
+}
+.stTabs [aria-selected="true"],
+.stTabs [data-selected="true"],
+[data-testid="stTabs"] [aria-selected="true"],
+[data-testid="stTabs"] [data-selected="true"] {
+    background: linear-gradient(135deg, #4F46E5, #06B6D4) !important;
+    border-radius: 11px !important;
+}
+.stTabs [aria-selected="true"] p,
+.stTabs [aria-selected="true"] div,
+.stTabs [aria-selected="true"] span,
+.stTabs [data-selected="true"] p,
+.stTabs [data-selected="true"] div,
+.stTabs [data-selected="true"] span,
+[data-testid="stTabs"] [aria-selected="true"] p,
+[data-testid="stTabs"] [aria-selected="true"] div,
+[data-testid="stTabs"] [aria-selected="true"] span {
+    color: #FFFFFF !important;
+}
+.stTabs [data-baseweb="tab-highlight"],
+.stTabs [data-baseweb="tab-border"],
+.stTabs .react-aria-SelectionIndicator,
+[data-testid="stTabs"] .react-aria-SelectionIndicator {
+    display: none !important;
+    background: transparent !important;
+    height: 0 !important;
+}
 
 /* ---------- Buttons ---------- */
 .stButton > button { border-radius:11px; font-weight:650; }
@@ -199,7 +253,15 @@ def _arc_chart(df, category, value, inner_radius, title, value_title, value_form
         color=alt.Color(
             f"{category}:N",
             scale=alt.Scale(range=PALETTE),
-            legend=alt.Legend(title=None, orient="bottom", columns=2, labelLimit=190),
+            legend=alt.Legend(
+                title=None,
+                orient="bottom",
+                columns=2,
+                labelLimit=240,
+                rowPadding=6,
+                columnPadding=16,
+                symbolType="circle",
+            ),
         ),
         order=alt.Order(f"{value}:Q", sort="descending"),
         tooltip=[
@@ -209,16 +271,27 @@ def _arc_chart(df, category, value, inner_radius, title, value_title, value_form
     )
     arcs = base.mark_arc(
         innerRadius=inner_radius,
-        outerRadius=118,
+        outerRadius=86,
         stroke="#FFFFFF",
         strokeWidth=2,
         cornerRadius=3,
     )
-    return arcs.properties(height=330, title=title)
+    return arcs.properties(
+        height=320,
+        title=alt.TitleParams(
+            text=title,
+            anchor="start",
+            fontSize=13,
+            fontWeight=600,
+            color="#475569",
+            offset=12,
+        ),
+        padding={"top": 12, "bottom": 12, "left": 10, "right": 10},
+    )
 
 
 def donut_chart(df, category, value, title, value_title="Value", value_format=".1f"):
-    return _arc_chart(df, category, value, 68, title, value_title, value_format)
+    return _arc_chart(df, category, value, 50, title, value_title, value_format)
 
 
 def pie_chart(df, category, value, title, value_title="Value", value_format=".1f"):
@@ -228,17 +301,34 @@ def pie_chart(df, category, value, title, value_title="Value", value_format=".1f
 def hbar_chart(df, category, value, title, value_title="Value", value_format=".1f"):
     return (
         alt.Chart(df)
-        .mark_bar(cornerRadiusEnd=7, height=22)
+        .mark_bar(cornerRadiusEnd=6, height=20)
         .encode(
             x=alt.X(f"{value}:Q", title=value_title, axis=alt.Axis(grid=True, gridDash=[2, 3])),
-            y=alt.Y(f"{category}:N", sort="-x", title=None),
+            y=alt.Y(
+                f"{category}:N",
+                sort="-x",
+                title=None,
+                axis=alt.Axis(labelLimit=300, labelFontSize=12),
+                scale=alt.Scale(paddingInner=0.35),
+            ),
             color=alt.Color(f"{category}:N", scale=alt.Scale(range=PALETTE), legend=None),
             tooltip=[
                 alt.Tooltip(f"{category}:N", title=category),
                 alt.Tooltip(f"{value}:Q", title=value_title, format=value_format),
             ],
         )
-        .properties(height=max(150, 44 * max(len(df), 1)), title=title)
+        .properties(
+            height=max(180, 42 * max(len(df), 1)),
+            title=alt.TitleParams(
+                text=title,
+                anchor="start",
+                fontSize=13,
+                fontWeight=600,
+                color="#475569",
+                offset=12,
+            ),
+            padding={"top": 12, "bottom": 12, "left": 10, "right": 20},
+        )
     )
 
 
@@ -247,13 +337,30 @@ def grouped_bar_chart(df, x, y, color, title, value_title="Score"):
         alt.Chart(df)
         .mark_bar(cornerRadiusEnd=5)
         .encode(
-            x=alt.X(f"{x}:N", title=None, axis=alt.Axis(labelAngle=-25)),
+            x=alt.X(f"{x}:N", title=None, axis=alt.Axis(labelAngle=-25, labelLimit=200)),
             y=alt.Y(f"{y}:Q", title=value_title),
-            color=alt.Color(f"{color}:N", scale=alt.Scale(range=PALETTE),
-                            legend=alt.Legend(title=None, orient="bottom")),
+            color=alt.Color(
+                f"{color}:N",
+                scale=alt.Scale(range=PALETTE),
+                legend=alt.Legend(title=None, orient="bottom", rowPadding=6, columnPadding=16),
+            ),
             xOffset=alt.XOffset(f"{color}:N"),
-            tooltip=[alt.Tooltip(f"{x}:N"), alt.Tooltip(f"{color}:N"),
-                     alt.Tooltip(f"{y}:Q", format=".2f", title=value_title)],
+            tooltip=[
+                alt.Tooltip(f"{x}:N"),
+                alt.Tooltip(f"{color}:N"),
+                alt.Tooltip(f"{y}:Q", format=".2f", title=value_title),
+            ],
         )
-        .properties(height=360, title=title)
+        .properties(
+            height=360,
+            title=alt.TitleParams(
+                text=title,
+                anchor="start",
+                fontSize=13,
+                fontWeight=600,
+                color="#475569",
+                offset=12,
+            ),
+            padding={"top": 12, "bottom": 12, "left": 10, "right": 10},
+        )
     )
