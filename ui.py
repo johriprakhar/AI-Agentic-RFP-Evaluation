@@ -1,5 +1,8 @@
 """Presentation helpers: colour palette, CSS theme, cards and Altair charts."""
 
+import html
+import re
+
 import altair as alt
 import streamlit as st
 
@@ -155,6 +158,90 @@ _CSS = """
 }
 [data-testid="stMetric"] {
     background:#FFFFFF; border:1px solid #E7EAF6; border-radius:14px; padding:12px 14px;
+}
+
+/* ---------- Chunk Viewer ---------- */
+.rfp-chunk-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    box-shadow: 0 3px 12px rgba(15,23,42,.04);
+}
+.rfp-chunk-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #F1F5F9;
+}
+.rfp-chunk-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #475569;
+}
+.rfp-chunk-badge {
+    background: #EEF2FF;
+    color: #4338CA;
+    padding: 3px 10px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    border: 1px solid #C7D2FE;
+}
+.rfp-chunk-box {
+    background: #0F172A;
+    border: 1px solid #1E293B;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: #E2E8F0;
+    overflow-x: auto;
+}
+.rfp-chunk-line {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+.rfp-line-num {
+    color: #64748B;
+    user-select: none;
+    font-weight: 600;
+    min-width: 42px;
+    text-align: right;
+    font-size: 0.8rem;
+}
+.rfp-line-text {
+    flex: 1;
+    color: #F8FAFC;
+    word-break: break-word;
+}
+.rfp-match-mark {
+    background-color: #FEF08A;
+    color: #854D0E;
+    padding: 1px 4px;
+    border-radius: 4px;
+    font-weight: 700;
+}
+.rfp-reasoning-box {
+    background: #F0FDF4;
+    border: 1px solid #BBF7D0;
+    border-left: 4px solid #10B981;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.84rem;
+    color: #065F46;
+    margin-bottom: 10px;
 }
 
 /* ---------- Status pills ---------- */
@@ -316,6 +403,63 @@ def section(title, accent="#4F46E5"):
 
 def pill(text, kind="info"):
     st.markdown(f"<span class='rfp-pill rfp-pill-{kind}'>{text}</span>", unsafe_allow_html=True)
+
+
+def chunk_card(chunk, query_terms=None, reasoning=None, matched_quote=None):
+    """Render a document chunk with line numbers, page number, match badge, and optional highlight."""
+    score = float(chunk.get("score", 0))
+    score_color = "#10B981" if score >= 75 else ("#F59E0B" if score >= 45 else "#64748B")
+
+    # Format lines with line numbers and optional term highlighting
+    terms = [re.escape(t) for t in (query_terms or []) if len(t) > 1]
+    pattern = re.compile(rf"\b({'|'.join(terms)})\b", re.IGNORECASE) if terms else None
+
+    line_items_html = []
+    for item in chunk.get("lines", []):
+        num = item["line_num"]
+        raw_text = html.escape(item["text"])
+        if pattern:
+            raw_text = pattern.sub(r"<mark class='rfp-match-mark'>\1</mark>", raw_text)
+        line_items_html.append(
+            f'<div class="rfp-chunk-line">'
+            f'<span class="rfp-line-num">L{num} |</span>'
+            f'<span class="rfp-line-text">{raw_text}</span>'
+            f'</div>'
+        )
+    lines_body = "".join(line_items_html)
+
+    reasoning_html = ""
+    if reasoning:
+        escaped_reasoning = html.escape(reasoning)
+        reasoning_html = f"<div class='rfp-reasoning-box'>💡 <b>Semantic Match:</b> {escaped_reasoning}</div>"
+
+    quote_html = ""
+    if matched_quote:
+        escaped_quote = html.escape(matched_quote)
+        quote_html = f"<div style='font-size:0.83rem; color:#475569; margin-bottom:8px;'>📌 <b>Key Evidence:</b> <i>\"{escaped_quote}\"</i></div>"
+
+    st.markdown(
+        f"""
+        <div class="rfp-chunk-card">
+            <div class="rfp-chunk-header">
+                <div class="rfp-chunk-meta">
+                    <span class="rfp-chunk-badge">🏢 {html.escape(str(chunk.get('document_name', '')))}</span>
+                    <span>📄 Page {chunk.get('page', 1)}</span>
+                    <span>📍 Lines {chunk.get('start_line', 1)}–{chunk.get('end_line', 1)}</span>
+                </div>
+                <div style="font-weight:800; font-size:0.92rem; color:{score_color};">
+                    🎯 {score:.1f}% Match
+                </div>
+            </div>
+            {reasoning_html}
+            {quote_html}
+            <div class="rfp-chunk-box">
+                {lines_body}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _arc_chart(df, category, value, inner_radius, title, value_title, value_format=".1f"):
