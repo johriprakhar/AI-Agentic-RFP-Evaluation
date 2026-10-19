@@ -24,7 +24,12 @@ from llm_providers import (
 )
 from pdf_processor import extract_pdf_pages
 from scoring import validate_and_normalize, calculate_supplier_metrics, rank_suppliers
-from search_engine import extract_document_chunks, search_without_llm, search_with_llm, tokenize
+
+try:
+    from search_engine import extract_document_chunks, search_without_llm, search_with_llm, tokenize
+    SEARCH_MODULE_AVAILABLE = True
+except ImportError:
+    SEARCH_MODULE_AVAILABLE = False
 
 load_dotenv()
 init_db()
@@ -539,6 +544,13 @@ with tab_results:
 # ----------------------------------------------------------------------------
 with tab_search:
     ui.section("Semantic document search", ui.ACCENTS[1])
+    if not SEARCH_MODULE_AVAILABLE:
+        st.error(
+            "⚠️ The search engine module (`search_engine.py`) could not be loaded. "
+            "Please ensure `search_engine.py` is committed and pushed to your repository."
+        )
+        st.stop()
+
     st.caption(
         "Search across uploaded supplier proposals using fast non-LLM statistical "
         "semantic retrieval (BM25) or deep LLM semantic analysis. View ranked documents "
