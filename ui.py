@@ -369,12 +369,16 @@ def pie_chart(df, category, value, title, value_title="Value", value_format=".1f
     return _arc_chart(df, category, value, 0, title, value_title, value_format)
 
 
-def hbar_chart(df, category, value, title, value_title="Value", value_format=".1f"):
+def hbar_chart(df, category, value, title, value_title="Value", value_format=".0f"):
     return (
         alt.Chart(df)
         .mark_bar(cornerRadiusEnd=6, height=20)
         .encode(
-            x=alt.X(f"{value}:Q", title=value_title, axis=alt.Axis(grid=True, gridDash=[2, 3])),
+            x=alt.X(
+                f"{value}:Q",
+                title=value_title,
+                axis=alt.Axis(grid=True, gridDash=[2, 3], format=value_format, tickMinStep=1),
+            ),
             y=alt.Y(
                 f"{category}:N",
                 sort="-x",

@@ -275,7 +275,7 @@ with tab_criteria:
         ui.section("Weighted points available per criterion", ui.ACCENTS[1])
         st.altair_chart(
             ui.hbar_chart(criteria_df, "Criterion", "Weighted points",
-                          "Maximum weighted points a supplier can earn", "Weighted points", ".2f"),
+                          "Maximum weighted points a supplier can earn", "Weighted points", ".0f"),
             width="stretch",
         )
 
