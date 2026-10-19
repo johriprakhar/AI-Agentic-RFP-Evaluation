@@ -162,9 +162,18 @@ _CSS = """
     display:inline-flex; align-items:center; gap:.35rem;
     font-size:.78rem; font-weight:700; padding:.28rem .66rem; border-radius:999px;
 }
-.rfp-pill-ok   { background:#E7F8F0; color:#0A7A52; border:1px solid #A9E5CC; }
-.rfp-pill-warn { background:#FFF3E0; color:#9A5B00; border:1px solid #FFD79A; }
-.rfp-pill-info { background:#EEF1FF; color:#3A33B8; border:1px solid #C3CAFF; }
+.rfp-pill-ok,
+section[data-testid="stSidebar"] .rfp-pill-ok {
+    background:#E7F8F0 !important; color:#0A7A52 !important; border:1px solid #A9E5CC !important;
+}
+.rfp-pill-warn,
+section[data-testid="stSidebar"] .rfp-pill-warn {
+    background:#FFF3E0 !important; color:#9A5B00 !important; border:1px solid #FFD79A !important;
+}
+.rfp-pill-info,
+section[data-testid="stSidebar"] .rfp-pill-info {
+    background:#EEF1FF !important; color:#3A33B8 !important; border:1px solid #C3CAFF !important;
+}
 
 /* ---------- Sidebar ---------- */
 section[data-testid="stSidebar"] {
@@ -178,14 +187,76 @@ section[data-testid="stSidebar"] p,
 section[data-testid="stSidebar"] span,
 section[data-testid="stSidebar"] li { color:#EEF0FF !important; }
 section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p { color:#C7CCF5 !important; }
+section[data-testid="stSidebar"] a {
+    color: #38BDF8 !important;
+    text-decoration: underline !important;
+    text-underline-offset: 2px;
+    font-weight: 600;
+}
+section[data-testid="stSidebar"] a:hover {
+    color: #7DD3FC !important;
+}
+section[data-testid="stSidebar"] [data-testid="stTooltipIcon"] svg,
+section[data-testid="stSidebar"] [data-testid="stHelpIcon"] svg {
+    fill: #A5B4FC !important;
+    color: #A5B4FC !important;
+}
+section[data-testid="stSidebar"] .stButton > button {
+    background: #FFFFFF !important;
+    border: 1px solid #D5DAE7 !important;
+    border-radius: 10px !important;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+    transition: all 0.15s ease;
+}
+section[data-testid="stSidebar"] .stButton > button p,
+section[data-testid="stSidebar"] .stButton > button span,
+section[data-testid="stSidebar"] .stButton > button div {
+    color: #1E2235 !important;
+    font-weight: 700 !important;
+}
+section[data-testid="stSidebar"] .stButton > button:hover {
+    background: #EEF2FF !important;
+    border-color: #A5B4FC !important;
+}
+section[data-testid="stSidebar"] .stButton > button:hover p,
+section[data-testid="stSidebar"] .stButton > button:hover span {
+    color: #4F46E5 !important;
+}
+section[data-testid="stSidebar"] [data-testid="stAlert"] p,
+section[data-testid="stSidebar"] [data-testid="stAlert"] span {
+    color: #1E2235 !important;
+}
+section[data-testid="stSidebar"] hr {
+    border-color: rgba(255, 255, 255, 0.22) !important;
+    margin: 1rem 0 !important;
+}
 section[data-testid="stSidebar"] input,
-section[data-testid="stSidebar"] textarea { color:#15182B !important; }
+section[data-testid="stSidebar"] textarea {
+    color: #15182B !important;
+    -webkit-text-fill-color: #15182B !important;
+}
 section[data-testid="stSidebar"] [data-baseweb="select"] > div {
     background:#FFFFFF; border-radius:10px; border-color:#FFFFFF;
 }
 section[data-testid="stSidebar"] [data-baseweb="select"] div,
 section[data-testid="stSidebar"] [data-baseweb="select"] span { color:#15182B !important; }
-section[data-testid="stSidebar"] [data-baseweb="input"] { border-radius:10px; }
+section[data-testid="stSidebar"] [data-baseweb="input"] {
+    border-radius: 10px;
+    background: #FFFFFF !important;
+}
+section[data-testid="stSidebar"] [data-baseweb="input"] input::placeholder {
+    color: #94A3B8 !important;
+    -webkit-text-fill-color: #94A3B8 !important;
+}
+section[data-testid="stSidebar"] [data-baseweb="input"] button svg {
+    fill: #64748B !important;
+    color: #64748B !important;
+}
+section[data-testid="stSidebar"] [data-testid="stNumberInput"] input {
+    background: #FFFFFF !important;
+    color: #15182B !important;
+    border-radius: 10px;
+}
 section[data-testid="stSidebar"] [data-testid="stExpander"] {
     background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.22);
 }
