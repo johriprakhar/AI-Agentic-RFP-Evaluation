@@ -405,6 +405,55 @@ def pill(text, kind="info"):
     st.markdown(f"<span class='rfp-pill rfp-pill-{kind}'>{text}</span>", unsafe_allow_html=True)
 
 
+#: Icon + label for each evidence verification outcome, used in drill-down tables.
+EVIDENCE_LABELS = {
+    "verified": "✅ Verified",
+    "partial": "🟡 Partial",
+    "unverified": "🔴 Not found",
+    "empty": "⚪ No quote",
+    "not applicable": "— n/a",
+}
+
+
+def evidence_label(status):
+    """Human-readable label for an `evidence.verify` status."""
+    return EVIDENCE_LABELS.get(str(status), "— n/a")
+
+
+def callout(title, body, accent="#4F46E5", background="#EEF2FF", border="#C7D2FE", badge=""):
+    """
+    A highlighted information card.
+
+    Every interpolated value is HTML-escaped. The content shown here can
+    originate from a PDF filename or a model reply, and neither is trusted
+    markup, so escaping is mandatory rather than defensive.
+    """
+    badge_html = ""
+    if badge:
+        badge_html = (
+            f"<span style='background:{accent}; color:#FFFFFF; padding:4px 14px; "
+            f"border-radius:999px; font-weight:800; font-size:0.9rem;'>{html.escape(str(badge))}</span>"
+        )
+    st.markdown(
+        f"""
+        <div style="background:{background}; border:2px solid {border}; border-radius:14px;
+                    padding:16px 20px; margin-bottom:18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;
+                        margin-bottom:6px;">
+                <div style="font-size:1.35rem; font-weight:800; color:#1E1B4B;">
+                    {html.escape(str(title))}
+                </div>
+                {badge_html}
+            </div>
+            <div style="font-size:0.94rem; color:#374151; line-height:1.55;">
+                {html.escape(str(body))}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def chunk_card(chunk, query_terms=None, reasoning=None, matched_quote=None):
     """Render a document chunk with line numbers, page number, match badge, and optional highlight."""
     score = float(chunk.get("score", 0))

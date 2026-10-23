@@ -15,6 +15,7 @@ References for the compatibility endpoints used below:
 import json
 import os
 import re
+import time
 
 from openai import OpenAI
 
@@ -251,36 +252,179 @@ def _extract_json(content):
         raise
 
 
-def chat_json(llm_config, system_prompt, user_prompt):
+class LLMError(RuntimeError):
+    """Raised when a model cannot be reached or cannot be coaxed into valid JSON."""
+
+
+#: Errors worth retrying verbatim: the request was fine, the service was not.
+_TRANSIENT_ERROR = re.compile(
+    r"(rate.?limit|429|too many requests|timeout|timed out|connection|"
+    r"50[0234]|overloaded|temporarily unavailable|service unavailable)",
+    re.IGNORECASE,
+)
+
+_JSON_REPAIR_PROMPT = (
+    "Your previous reply could not be parsed as JSON. Return the same information again as a "
+    "single valid JSON object. Output JSON only: no prose, no explanation, no markdown code "
+    "fences, no trailing commas."
+)
+
+
+def _is_transient(error) -> bool:
+    return bool(_TRANSIENT_ERROR.search(str(error)))
+
+
+def _create_completion(client, request, use_json_mode):
+    """One completion call, negotiating JSON mode down to plain text if rejected."""
+    if use_json_mode:
+        try:
+            return client.chat.completions.create(**request, response_format={"type": "json_object"})
+        except Exception as error:
+            # Only fall back for endpoints that reject the JSON-mode parameter itself.
+            if "response_format" not in str(error) and "json" not in str(error).lower():
+                raise
+    return client.chat.completions.create(**request)
+
+
+def chat(llm_config, messages, network_attempts=3):
     """
-    Send a chat request and return the parsed JSON object.
-    JSON mode is requested when the provider supports it, with a plain-text
-    retry so a provider that rejects response_format still works.
+    Send a message list and return the reply text.
+
+    Transient provider failures (rate limits, timeouts, 5xx) are retried with
+    exponential backoff. Everything else is raised immediately, because retrying
+    a bad API key or an unknown model id only wastes the user's time.
     """
     provider = llm_config.get("provider", DEFAULT_PROVIDER)
     config = provider_config(provider)
     client = _build_client(llm_config["api_key"], llm_config.get("base_url"))
     model = (llm_config.get("model") or "").strip()
     if not model:
-        raise RuntimeError("No model selected. Pick one in the sidebar under LLM Settings.")
+        raise LLMError("No model selected. Pick one in the sidebar under LLM Settings.")
 
     request = {
         "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
+        "messages": messages,
         "temperature": float(llm_config.get("temperature", 0)),
     }
-    if config.get("supports_json_mode", True):
+
+    last_error = None
+    for attempt in range(1, max(1, network_attempts) + 1):
         try:
-            response = client.chat.completions.create(
-                **request, response_format={"type": "json_object"}
-            )
-            return _extract_json(response.choices[0].message.content)
+            response = _create_completion(client, request, config.get("supports_json_mode", True))
+            return response.choices[0].message.content or ""
         except Exception as error:
-            # Only fall back for endpoints that reject the JSON-mode parameter.
-            if "response_format" not in str(error) and "json" not in str(error).lower():
+            last_error = error
+            if attempt >= network_attempts or not _is_transient(error):
                 raise
-    response = client.chat.completions.create(**request)
-    return _extract_json(response.choices[0].message.content)
+            time.sleep(min(8.0, 1.5 * (2 ** (attempt - 1))))
+    raise LLMError(str(last_error))
+
+
+def chat_json(llm_config, system_prompt, user_prompt):
+    """Send a request and return the parsed JSON object. Raises on unparseable replies."""
+    content = chat(llm_config, [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ])
+    return _extract_json(content)
+
+
+def chat_json_validated(
+    llm_config,
+    system_prompt,
+    user_prompt,
+    validator=None,
+    max_attempts=3,
+):
+    """
+    Request JSON, validate it, and ask the model to repair it when it is wrong.
+
+    This is the self-repair loop that makes structured output dependable without
+    a heavyweight framework. Each failed attempt is pushed back into the
+    conversation together with the specific validation errors, so the model is
+    told exactly which fields to fix rather than being asked to guess a second
+    time. The schema error messages double as the repair instructions.
+
+    ``validator`` takes the parsed payload and returns an object exposing ``ok``,
+    ``errors`` and ``warnings`` (see `schemas.ValidationReport`).
+
+    Returns ``{"payload": ..., "diagnostics": {...}}``. If the final attempt
+    still fails validation the best available payload is returned with
+    ``schema_failed`` set, because the downstream normalizer can repair a
+    partially wrong payload and record what it had to fix. An unparseable reply
+    on every attempt is a hard failure and raises `LLMError`.
+    """
+    from schemas import repair_instruction  # local import keeps this module import-light
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
+    diagnostics = {
+        "attempts": [],
+        "attempt_count": 0,
+        "repaired": False,
+        "schema_failed": False,
+        "schema_warnings": [],
+    }
+    best_payload = None
+    parse_errors = []
+
+    for attempt in range(1, max(1, max_attempts) + 1):
+        content = chat(llm_config, messages)
+        diagnostics["attempt_count"] = attempt
+        record = {"attempt": attempt, "ok": False, "stage": "parse", "errors": []}
+
+        try:
+            payload = _extract_json(content)
+        except Exception as error:
+            record["errors"] = [f"Reply was not valid JSON: {error}"]
+            diagnostics["attempts"].append(record)
+            parse_errors.append(str(error))
+            if attempt >= max_attempts:
+                break
+            messages.extend([
+                {"role": "assistant", "content": (content or "")[:4000]},
+                {"role": "user", "content": _JSON_REPAIR_PROMPT},
+            ])
+            continue
+
+        best_payload = payload
+        if validator is None:
+            record.update({"ok": True, "stage": "parsed"})
+            diagnostics["attempts"].append(record)
+            return {"payload": payload, "diagnostics": diagnostics}
+
+        report = validator(payload)
+        record.update({
+            "ok": bool(report.ok),
+            "stage": "schema",
+            "errors": list(report.errors[:10]),
+            "warnings": list(report.warnings[:10]),
+        })
+        diagnostics["attempts"].append(record)
+
+        if report.ok:
+            diagnostics["schema_warnings"] = list(report.warnings)
+            diagnostics["repaired"] = attempt > 1
+            return {"payload": payload, "diagnostics": diagnostics}
+
+        if attempt >= max_attempts:
+            diagnostics["schema_warnings"] = list(report.warnings)
+            diagnostics["schema_failed"] = True
+            diagnostics["unresolved_errors"] = list(report.errors)
+            return {"payload": payload, "diagnostics": diagnostics}
+
+        messages.extend([
+            {"role": "assistant", "content": (content or "")[:6000]},
+            {"role": "user", "content": repair_instruction(report)},
+        ])
+
+    if best_payload is not None:
+        diagnostics["schema_failed"] = True
+        return {"payload": best_payload, "diagnostics": diagnostics}
+
+    raise LLMError(
+        f"The model did not return valid JSON after {max_attempts} attempt(s). "
+        f"Last parser error: {parse_errors[-1] if parse_errors else 'unknown'}."
+    )

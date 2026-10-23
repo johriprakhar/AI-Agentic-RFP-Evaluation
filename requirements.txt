@@ -6,3 +6,7 @@ numpy>=1.26
 openai>=1.50
 python-dotenv>=1.0
 reportlab>=4.0
+
+# Testing. The suites also run under the stdlib unittest runner
+# (python test_scoring.py), so pytest is optional for using the app.
+pytest>=8.0
