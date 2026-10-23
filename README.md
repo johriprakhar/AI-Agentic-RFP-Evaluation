@@ -102,6 +102,36 @@ RFP_DB_PATH=./rfp_evaluation.db  # optional database location
 
 ---
 
+## Screenshots
+
+All three are from a live run against the four synthetic proposals, scored with Cohere `command-a-03-2025`.
+
+### Criteria
+
+![Criteria tab showing five active criteria totalling 100% weight, with the weight distribution donut, influence band pie chart, available weighted points per criterion, and the configuration table](screenshots/01-criteria-tab.png)
+
+The landing view. Five active criteria totalling 100%, Technical Capability heaviest at 30%. The weighted-points bar chart shows the maximum each criterion can contribute to the final 0–10 score. Weights are validated live — the run button stays disabled until the total reads 100%.
+
+### Results
+
+![Results tab for run RFP-9AC7FCE900: leaderboard ranking four suppliers by PPI, score comparison by criterion, the leader's score composition, and the expanded per-criterion evidence table with verification badges](screenshots/02-results-leaderboard.png)
+
+Run `RFP-9AC7FCE900`, four suppliers, 100% of quotes grounded in the source PDFs. Apex Systems leads on 9.70/10 and 100% PPI, ahead of BrightPath Tech (7.20 / 74.22%), NexaWorks (6.90 / 71.11%) and Orbit Digital (5.10 / 52.78%).
+
+Three things worth noting in this view:
+
+- **Why this rank** is stated per row, naming the level that decided the placement rather than leaving a tied result looking arbitrary.
+- The expanded drill-down shows score, weight, earned points, benchmark, gap, relative performance and status per criterion, each with an **Evidence check** badge. Every quote here verified against the extracted PDF text.
+- The footer records the input strategy — `full (100% of the document sent)` — so a reviewer knows nothing was condensed away. **Tool execution trace** and **Run provenance and tool manifest** expand to show the four deterministic steps around the single model call, and the provider, model and temperature that produced the result.
+
+### Run history
+
+![Run history tab listing two stored runs with their winners and providers, a loaded run confirmation, and a side-by-side comparison table of supplier ranks, absolute scores and PPI across both runs](screenshots/03-run-history.png)
+
+Stored runs reload from SQLite with the criteria snapshot each one used. The comparison table makes the point concretely: the same four suppliers rank differently across the two runs — Apex first in one, NexaWorks first in the other — because they were measured against different criteria configurations. Each run keeps its own snapshot, so both rankings stay explainable rather than one silently inheriting the other's weights.
+
+---
+
 ## Default criteria
 
 | Criterion | Weight | Max score | Covers |
